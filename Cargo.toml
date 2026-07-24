@@ -5,8 +5,8 @@ edition = "2024"
 
 [dependencies]
 avian2d = "0.6.1"
-bevy = { version = "0.18.1", default-features = false, features = ["bevy_asset", "bevy_scene", "debug"] }
-bevy_ratatui = "0.11.1"
+bevy = { version = "0.18.1", default-features = false, features = ["bevy_asset", "bevy_scene", "bevy_gilrs", "gamepad", "debug"] }
+bevy_ratatui = { version = "0.11.1" }
 rand = "0.10.2"
 ratatui = "0.30.0"
 ratatui_kurbo = { version = "0.1.0", path = "./kurbo-ratatui", default-features = false }

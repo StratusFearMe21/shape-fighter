@@ -5,7 +5,7 @@ use std::{
 };
 
 use avian2d::prelude::*;
-use bevy::{prelude::*, scene::ScenePlugin};
+use bevy::{input::gamepad::GamepadConnectionEvent, prelude::*, scene::ScenePlugin};
 use bevy_ratatui::{
     RatatuiContext, RatatuiPlugins,
     event::{KeyMessage, MouseMessage, ResizeMessage},
@@ -37,6 +37,21 @@ struct RatatuiColor(Color);
 #[repr(transparent)]
 struct RatatuiColorIter(Copied<Cycle<std::slice::Iter<'static, RatatuiColor>>>);
 
+#[derive(Component, Clone, Copy)]
+struct Map;
+
+#[derive(Component, Clone, Copy)]
+struct Player;
+
+#[derive(Component, Clone)]
+struct InnerCollider(Collider);
+
+#[derive(Component, Clone)]
+enum InputMethod {
+    Gamepad(Entity),
+    KeyboardMouse,
+}
+
 fn main() {
     App::new()
         .add_plugins((
@@ -51,10 +66,17 @@ fn main() {
             AssetPlugin::default(),
             ScenePlugin::default(),
             PhysicsPlugins::default(),
+            GilrsPlugin::default(),
         ))
         .insert_resource(Gravity(bevy::math::Vec2::ZERO))
         .add_systems(PostStartup, setup)
-        .add_systems(PreUpdate, input_system)
+        .add_systems(
+            PreUpdate,
+            (
+                input_system,
+                gamepad_connect_system.run_if(on_message::<GamepadConnectionEvent>),
+            ),
+        )
         .add_systems(FixedPreUpdate, particle_system)
         .add_systems(
             Update,
@@ -66,16 +88,21 @@ fn main() {
         .run();
 }
 
-#[derive(Component, Clone, Copy)]
-struct Map;
-
-#[derive(Component, Clone, Copy)]
-struct Player;
-
-fn map_shape(size: Size) -> (Collider, Transform, RatatuiShape) {
+fn map_shape(size: Size) -> (InnerCollider, Collider, Transform, RatatuiShape) {
     let map_radius = size.width.min(size.height) as f32 / 2.0 - 16.0;
     (
-        Collider::circle(map_radius),
+        InnerCollider(Collider::circle(map_radius)),
+        Collider::polyline(
+            CircleIter::new(canvas::Circle {
+                x: 0.0,
+                y: 0.0,
+                radius: map_radius as f64,
+                color: Color::Reset,
+            })
+            .map(|(x, y)| vec2(x as f32, y as f32))
+            .collect::<Vec<_>>(),
+            None,
+        ),
         Transform::from_xyz(size.width as f32 / 2.0, size.height as f32 / 2.0, 0.0),
         RatatuiShape::Circle(BezPathShape::new(
             Circle::new((0.0, 0.0), map_radius as f64),
@@ -87,11 +114,13 @@ fn map_shape(size: Size) -> (Collider, Transform, RatatuiShape) {
 fn setup(mut commands: Commands, context: Res<RatatuiContext>) {
     let size = context.size().unwrap_or(Size::new(185, 57));
     let size = Size::new(size.width * 2, size.height * 4);
-    let (collider, transform, shape) = map_shape(size);
+    let (inner_collider, collider, transform, shape) = map_shape(size);
     commands.spawn((
-        // RigidBody::Static,
+        RigidBody::Static,
+        inner_collider,
         collider,
         transform,
+        Restitution::new(4.0),
         RatatuiColor(Color::White),
         shape,
         Map,
@@ -107,13 +136,48 @@ fn setup(mut commands: Commands, context: Res<RatatuiContext>) {
         transform,
         RatatuiColor(Color::White),
         LinearDamping(0.5),
+        MaxAngularSpeed(0.0),
+        MaxLinearSpeed(200.0),
         LinearVelocity::ZERO,
+        InputMethod::KeyboardMouse,
         RatatuiShape::Triangle(BezPathShape::new(
             triangle,
             peniko::Style::Stroke(kurbo::Stroke::new(1.0)),
         )),
         Player,
     ));
+}
+
+fn gamepad_connect_system(
+    mut commands: Commands,
+    context: Res<RatatuiContext>,
+    mut gamepad_events: MessageReader<GamepadConnectionEvent>,
+) {
+    let size = context.size().unwrap_or(Size::new(185, 57));
+    let size = Size::new(size.width * 2, size.height * 4);
+
+    let transform = Transform::from_xyz(size.width as f32 / 2.0, size.height as f32 / 2.0, 0.0);
+
+    for event in gamepad_events.read() {
+        if event.connected() {
+            commands.spawn((
+                RigidBody::Dynamic,
+                Collider::circle(10.0),
+                transform,
+                RatatuiColor(Color::White),
+                LinearDamping(0.5),
+                MaxAngularSpeed(0.0),
+                MaxLinearSpeed(200.0),
+                LinearVelocity::ZERO,
+                InputMethod::Gamepad(event.gamepad),
+                RatatuiShape::Circle(BezPathShape::new(
+                    Circle::new((0.0, 0.0), 10.0),
+                    peniko::Style::Stroke(kurbo::Stroke::new(1.0)),
+                )),
+                Player,
+            ));
+        }
+    }
 }
 
 struct CircleIter(canvas::Circle, Range<i32>);
@@ -140,13 +204,13 @@ fn draw_system(
     mut context: ResMut<RatatuiContext>,
     particles: Query<(&Particle, &Transform, &RatatuiBloomColors, &RatatuiColor)>,
     shapes: Query<(&RatatuiShape, &Transform, &RatatuiColor)>,
-    map: Single<(&Collider, &Transform), With<Map>>,
+    map: Single<(&InnerCollider, &Transform), With<Map>>,
 ) -> Result {
     context.draw(|frame| {
         let area = frame.area();
         let x_bounds = [0.0, area.width as f64 * 2.0];
         let y_bounds = [0.0, area.height as f64 * 4.0];
-        let (map_collider, map_transform) = map.into_inner();
+        let (InnerCollider(map_collider), map_transform) = map.into_inner();
 
         // let x_bounds = [0.0, area.width as f64];
         // let y_bounds = [0.0, area.height as f64 * 2.0];
@@ -281,14 +345,23 @@ fn resize_system(
     mut commands: Commands,
     context: Res<RatatuiContext>,
     particles: Query<(Entity, &Particle, &mut Transform), Without<Map>>,
-    map: Single<(&mut Collider, &mut Transform, &mut RatatuiShape), With<Map>>,
+    map: Single<
+        (
+            &mut InnerCollider,
+            &mut Collider,
+            &mut Transform,
+            &mut RatatuiShape,
+        ),
+        With<Map>,
+    >,
 ) {
     let size = context.size().unwrap_or(Size::new(185, 57));
     let size = Size::new(size.width * 2, size.height * 4);
 
-    let (mut collider, mut transform, mut shape) = map.into_inner();
-    let (new_collider, new_transform, new_shape) = map_shape(size);
+    let (mut inner_collider, mut collider, mut transform, mut shape) = map.into_inner();
+    let (new_inner_collider, new_collider, new_transform, new_shape) = map_shape(size);
 
+    *inner_collider = new_inner_collider;
     *collider = new_collider;
     *transform = new_transform;
     *shape = new_shape;
@@ -356,33 +429,56 @@ fn input_system(
     mut mouse_messages: MessageReader<MouseMessage>,
     mut exit: MessageWriter<AppExit>,
     context: Res<RatatuiContext>,
-    player: Single<(&mut LinearVelocity, &mut Transform), With<Player>>,
+    players: Query<(&mut LinearVelocity, &mut Transform, &InputMethod), With<Player>>,
+    gamepads: Query<&Gamepad>,
 ) {
-    let (mut player_linear_velocity, mut player_transform) = player.into_inner();
-    let size = context.size().unwrap_or(Size::new(185, 57));
-    let size = Size::new(size.width * 2, size.height * 4);
-    for message in key_messages.read() {
-        if message.is_release() {
-            continue;
-        }
-        if let KeyCode::Char('q') = message.code {
-            exit.write_default();
-        }
-    }
-    for MouseMessage(message) in mouse_messages.read() {
-        let mouse_world = vec2(
-            (message.column * 2) as f32,
-            size.height as f32 - (message.row * 4) as f32,
-        );
-        player_transform.rotation = Quat::from_rotation_z(
-            (mouse_world - player_transform.translation.xy()).to_angle() - FRAC_PI_2,
-        );
+    for (mut player_linear_velocity, mut player_transform, input_method) in players {
+        let size = context.size().unwrap_or(Size::new(185, 57));
+        let size = Size::new(size.width * 2, size.height * 4);
+        match input_method {
+            InputMethod::KeyboardMouse => {
+                for message in key_messages.read() {
+                    if message.is_release() {
+                        continue;
+                    }
+                    if let KeyCode::Char('q') = message.code {
+                        exit.write_default();
+                    }
+                }
+                for MouseMessage(message) in mouse_messages.read() {
+                    let mouse_world = vec2(
+                        (message.column * 2) as f32,
+                        size.height as f32 - (message.row * 4) as f32,
+                    );
+                    player_transform.rotation = Quat::from_rotation_z(
+                        (mouse_world - player_transform.translation.xy()).to_angle() - FRAC_PI_2,
+                    );
 
-        match message.kind {
-            MouseEventKind::Down(ratatui::crossterm::event::MouseButton::Left) => {
-                player_linear_velocity.0 = player_transform.up().xy() * 100.0;
+                    match message.kind {
+                        MouseEventKind::Down(ratatui::crossterm::event::MouseButton::Left) => {
+                            player_linear_velocity.0 += player_transform.up().xy() * 100.0;
+                        }
+                        _ => {}
+                    }
+                }
             }
-            _ => {}
+            InputMethod::Gamepad(gamepad) => {
+                if let Ok(gamepad) = gamepads.get(*gamepad) {
+                    let right_stick_x = gamepad.get(GamepadAxis::RightStickX).unwrap();
+                    let right_stick_y = gamepad.get(GamepadAxis::RightStickY).unwrap();
+
+                    player_transform.rotation = Quat::from_rotation_z(
+                        vec2(right_stick_x, right_stick_y).to_angle() - FRAC_PI_2,
+                    );
+
+                    if gamepad.just_pressed(GamepadButton::RightTrigger) {
+                        player_linear_velocity.0 += player_transform.up().xy() * 100.0;
+                    }
+                    if gamepad.just_pressed(GamepadButton::East) {
+                        player_linear_velocity.0 = player_transform.up().xy() * 100.0;
+                    }
+                }
+            }
         }
     }
 }
