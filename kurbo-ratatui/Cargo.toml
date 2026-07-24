@@ -26,9 +26,9 @@ name = "benchmark"
 harness = false
 
 [patch.crates-io]
-ratatui = { path = "/home/isaacm/tries/2026-05-29-ratatui/ratatui" }
-ratatui-core = { path = "/home/isaacm/tries/2026-05-29-ratatui/ratatui-core" }
-ratatui-widgets = { path = "/home/isaacm/tries/2026-05-29-ratatui/ratatui-widgets" }
-ratatui-crossterm = { path = "/home/isaacm/tries/2026-05-29-ratatui/ratatui-crossterm" }
-ratatui-macros = { path = "/home/isaacm/tries/2026-05-29-ratatui/ratatui-macros" }
-ratatui-termwiz = { path = "/home/isaacm/tries/2026-05-29-ratatui/ratatui-termwiz" }
+ratatui = { path = "../ratatui/ratatui" }
+ratatui-core = { path = "../ratatui/ratatui-core" }
+ratatui-widgets = { path = "../ratatui/ratatui-widgets" }
+ratatui-crossterm = { path = "../ratatui/ratatui-crossterm" }
+ratatui-macros = { path = "../ratatui/ratatui-macros" }
+ratatui-termwiz = { path = "../ratatui/ratatui-termwiz" }
