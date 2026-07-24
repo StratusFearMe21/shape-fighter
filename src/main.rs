@@ -186,21 +186,22 @@ fn draw_system(
         for (shape, transform, color) in shapes {
             // let text = Text::raw("hello world\npress 'q' to quit");
             // let color: Color = (*color).into();
-            let (axis, angle) = transform.rotation.to_axis_angle();
+            let Mat3 { x_axis, y_axis, .. } = Mat3::from_quat(transform.rotation);
             shape.draw(
                 &mut builder,
                 color.0,
-                Affine::translate(Vec2::new(
+                Affine::new([
+                    x_axis.x as f64,
+                    x_axis.y as f64,
+                    y_axis.x as f64,
+                    y_axis.y as f64,
+                    0.0,
+                    0.0,
+                ])
+                .then_translate(Vec2::new(
                     transform.translation.x as f64,
                     transform.translation.y as f64,
-                ))
-                .then_rotate_about(
-                    angle as f64,
-                    (
-                        transform.translation.x as f64,
-                        transform.translation.y as f64,
-                    ),
-                ),
+                )),
             );
         }
 
