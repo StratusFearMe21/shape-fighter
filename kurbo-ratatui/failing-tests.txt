@@ -1,0 +1,10 @@
+tests::ensure_star_matches_naive::case_28
+tests::ensure_star_matches_naive::case_29
+tests::ensure_star_matches_naive::case_30
+tests::ensure_star_matches_naive::case_31
+tests::ensure_star_matches_naive::case_32
+tests::ensure_star_matches_naive_evenodd::case_28
+tests::ensure_star_matches_naive_evenodd::case_29
+tests::ensure_star_matches_naive_evenodd::case_30
+tests::ensure_star_matches_naive_evenodd::case_31
+tests::ensure_star_matches_naive_evenodd::case_32

@@ -1,0 +1,34 @@
+[package]
+name = "ratatui_kurbo"
+version = "0.1.0"
+authors = ["Isaac Mills <rooster0055@protonmail.com>"]
+edition = "2024"
+
+[features]
+default = ["flip-y"]
+flip-y = []
+
+[dependencies]
+peniko = "0.6.0"
+ratatui-core = "0.1.0"
+ratatui-widgets = { version = "0.3.0", default-features = false }
+
+[dev-dependencies]
+rstest = "0.26.1"
+ratatui = "0.30.0"
+criterion = "0.8.2"
+
+[profile.bench]
+debug = true
+
+[[bench]]
+name = "benchmark"
+harness = false
+
+[patch.crates-io]
+ratatui = { path = "/home/isaacm/tries/2026-05-29-ratatui/ratatui" }
+ratatui-core = { path = "/home/isaacm/tries/2026-05-29-ratatui/ratatui-core" }
+ratatui-widgets = { path = "/home/isaacm/tries/2026-05-29-ratatui/ratatui-widgets" }
+ratatui-crossterm = { path = "/home/isaacm/tries/2026-05-29-ratatui/ratatui-crossterm" }
+ratatui-macros = { path = "/home/isaacm/tries/2026-05-29-ratatui/ratatui-macros" }
+ratatui-termwiz = { path = "/home/isaacm/tries/2026-05-29-ratatui/ratatui-termwiz" }
