@@ -1,4 +1,5 @@
 use std::{
+    f32::consts::FRAC_PI_2,
     iter::{Copied, Cycle},
     ops::Range,
 };
@@ -7,11 +8,11 @@ use avian2d::prelude::*;
 use bevy::{prelude::*, scene::ScenePlugin};
 use bevy_ratatui::{
     RatatuiContext, RatatuiPlugins,
-    event::{KeyMessage, ResizeMessage},
+    event::{KeyMessage, MouseMessage, ResizeMessage},
 };
 use rand::RngExt;
 use ratatui::{
-    crossterm::event::KeyCode,
+    crossterm::event::{KeyCode, MouseEventKind},
     layout::Size,
     style::Color,
     widgets::canvas::{self, Canvas, Painter},
@@ -106,7 +107,6 @@ fn setup(mut commands: Commands, context: Res<RatatuiContext>) {
         transform,
         RatatuiColor(Color::White),
         LinearDamping(0.5),
-        AngularVelocity::ZERO,
         LinearVelocity::ZERO,
         RatatuiShape::Triangle(BezPathShape::new(
             triangle,
@@ -352,21 +352,37 @@ fn particle_system(
 }
 
 fn input_system(
-    mut messages: MessageReader<KeyMessage>,
+    mut key_messages: MessageReader<KeyMessage>,
+    mut mouse_messages: MessageReader<MouseMessage>,
     mut exit: MessageWriter<AppExit>,
-    player: Single<(&mut LinearVelocity, &mut AngularVelocity), With<Player>>,
+    context: Res<RatatuiContext>,
+    player: Single<(&mut LinearVelocity, &mut Transform), With<Player>>,
 ) {
-    let (mut linear_velocity, mut angular_velocity) = player.into_inner();
-    for message in messages.read() {
+    let (mut player_linear_velocity, mut player_transform) = player.into_inner();
+    let size = context.size().unwrap_or(Size::new(185, 57));
+    let size = Size::new(size.width * 2, size.height * 4);
+    for message in key_messages.read() {
         if message.is_release() {
             continue;
         }
         if let KeyCode::Char('q') = message.code {
             exit.write_default();
         }
-        if let KeyCode::Char(' ') = message.code {
-            linear_velocity.y += 25.0;
-            angular_velocity.0 += 1.0;
+    }
+    for MouseMessage(message) in mouse_messages.read() {
+        let mouse_world = vec2(
+            (message.column * 2) as f32,
+            size.height as f32 - (message.row * 4) as f32,
+        );
+        player_transform.rotation = Quat::from_rotation_z(
+            (mouse_world - player_transform.translation.xy()).to_angle() - FRAC_PI_2,
+        );
+
+        match message.kind {
+            MouseEventKind::Down(ratatui::crossterm::event::MouseButton::Left) => {
+                player_linear_velocity.0 = player_transform.up().xy() * 100.0;
+            }
+            _ => {}
         }
     }
 }
