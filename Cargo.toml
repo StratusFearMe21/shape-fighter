@@ -1,0 +1,33 @@
+[package]
+name = "shape-fighter"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+avian2d = "0.6.1"
+bevy = { version = "0.18.1", default-features = false, features = ["bevy_asset", "bevy_scene", "debug"] }
+bevy_ratatui = "0.11.1"
+rand = "0.10.2"
+ratatui = "0.30.0"
+ratatui_kurbo = { version = "0.1.0", path = "../../tries/2026-02-26-kurbo-ratatui", default-features = false }
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[patch.crates-io]
+ratatui = { path = "/home/isaacm/tries/2026-05-29-ratatui/ratatui" }
+ratatui-core = { path = "/home/isaacm/tries/2026-05-29-ratatui/ratatui-core" }
+ratatui-widgets = { path = "/home/isaacm/tries/2026-05-29-ratatui/ratatui-widgets" }
+ratatui-crossterm = { path = "/home/isaacm/tries/2026-05-29-ratatui/ratatui-crossterm" }
+ratatui-macros = { path = "/home/isaacm/tries/2026-05-29-ratatui/ratatui-macros" }
+ratatui-termwiz = { path = "/home/isaacm/tries/2026-05-29-ratatui/ratatui-termwiz" }
+ratatui-termion = { path = "/home/isaacm/tries/2026-05-29-ratatui/ratatui-termion" }
