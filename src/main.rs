@@ -144,10 +144,16 @@ fn setup(mut commands: Commands, context: Res<RatatuiContext>) {
             triangle,
             peniko::Style::Stroke(kurbo::Stroke::new(1.0)),
         )),
+        CollisionEventsEnabled,
         Player,
-    ));
+    )).observe(thing);
 }
-
+fn thing(event: On<CollisionStart>, mut player_query: Query<(&mut Collider, &LinearVelocity)>) {
+    let other_entity = event.collider2;
+    if let Ok((mut collider, velocity)) = player_query.get_mut(other_entity) {
+       *collider = Collider::rectangle(0.0, 0.0);
+    }
+}
 fn gamepad_connect_system(
     mut commands: Commands,
     context: Res<RatatuiContext>,
